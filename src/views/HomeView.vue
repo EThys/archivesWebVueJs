@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import TheWelcome from '../components/TheWelcome.vue'
+//@ts-ignore
 </script>
 
 <template>
-  <main>
-    <TheWelcome />
-  </main>
+  <h1 class="text-indigo-600">La page se chargera ici</h1>
 </template>
