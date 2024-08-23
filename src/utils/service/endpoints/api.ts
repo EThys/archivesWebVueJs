@@ -1,4 +1,5 @@
 export const ApiRoutes = {
   login: 'login',
-  logout: 'logout'
+  logout: 'logout',
+  changePassword: 'changePassword'
 }
