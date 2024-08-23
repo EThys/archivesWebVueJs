@@ -87,7 +87,7 @@ const name = 'Nav'
                 role="menuitem"
                 tabindex="-1"
                 id="user-menu-item-0"
-                >Change password</a
+                ><router-link to="/changePassword">Change password</router-link></a
               >
               <a
                 @click="logout"

@@ -53,6 +53,7 @@ const login = async () => {
         setToken(token as IToken)
         setUser(response.data as IUser)
       }
+      router.push('/home')
       loading.value = false
     })
     .catch(function (error) {
@@ -69,18 +70,22 @@ const login = async () => {
 }
 
 const loginValidate = async () => {
+  loading.value = true
   if (
     !auth.value.Password ||
     !auth.value.UserName ||
     auth.value.Password.trim() === '' ||
     auth.value.UserName.trim() === ''
   ) {
-    toast.open({
-      message: 'Oops...Veuillez remplir vos informations!',
-      type: 'error',
-      position: 'bottom',
-      duration: 5000
-    })
+    setTimeout(() => {
+      toast.open({
+        message: 'Oops...Veuillez remplir vos informations!',
+        type: 'error',
+        position: 'bottom',
+        duration: 5000
+      })
+      loading.value = false
+    }, 300)
     return
   } else {
     await login()
