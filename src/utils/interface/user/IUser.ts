@@ -19,3 +19,9 @@ export interface IUserAuth {
   UserName: string
   Password: string
 }
+
+export interface IChangePassword {
+  oldPassword: string
+  newPassword: string
+  confirmPassword: string
+}
