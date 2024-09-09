@@ -62,42 +62,50 @@ const name = 'Nav'
             >
               <!-- Active: "bg-gray-100", Not Active: "" -->
               <a
-                class="block px-4 py-2 text-sm text-black cursor-pointer"
+                class="px-4 py-2 text-sm text-black cursor-pointer flex items-center justify-between"
                 role="menuitem"
                 tabindex="-1"
                 id="user-menu-item-0"
-                >Rapport</a
+                >Rapport
+                <i class="fa-solid fa-file-pdf"></i>
+              </a>
+              <a
+                class="block px-4 py-2 text-sm text-black cursor-"
+                role="menuitem"
+                tabindex="-1"
+                id="user-menu-item-0"
               >
+                <router-link class="flex items-center justify-between" to="/bulkDownload"
+                  >Bulk download<i class="fa-solid fa-download"></i>
+                </router-link>
+              </a>
               <a
                 class="block px-4 py-2 text-sm text-black cursor-pointer"
                 role="menuitem"
                 tabindex="-1"
                 id="user-menu-item-0"
-                >Bulk download</a
               >
+                <router-link class="flex items-center justify-between" to="/invoice">
+                  Add invoice<i class="fa-solid fa-plus-circle"></i>
+                </router-link>
+              </a>
               <a
                 class="block px-4 py-2 text-sm text-black cursor-pointer"
                 role="menuitem"
                 tabindex="-1"
                 id="user-menu-item-0"
-                >Add invoice</a
-              >
-              <a
-                class="block px-4 py-2 text-sm text-black cursor-pointer"
-                role="menuitem"
-                tabindex="-1"
-                id="user-menu-item-0"
-                ><router-link to="/changePassword">Change password</router-link></a
-              >
+                ><router-link class="flex items-center justify-between" to="/changePassword"
+                  >Change password <i class="fa-solid fa-key"></i> </router-link
+              ></a>
               <a
                 @click="logout"
                 href=""
-                class="block px-4 py-2 text-sm text-black cursor-pointer"
+                class="px-4 py-2 text-sm text-black cursor-pointer flex items-center justify-between"
                 role="menuitem"
                 tabindex="-1"
                 id="user-menu-item-1"
-                >Logout</a
-              >
+                >Logout <i class="fa-solid fa-sign-out-alt"></i
+              ></a>
             </div>
           </div>
         </div>

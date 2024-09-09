@@ -1,5 +1,5 @@
 export interface IUser {
-  UserId: BigInt
+  UserId: Number
   UserName: String
   Password: String
   SerialNumber: String
