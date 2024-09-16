@@ -459,7 +459,11 @@ const toggleCategorySearchOpen = () => {
   >
     No results found
   </div>
-  <div v-if="invoices.length > 0" style="width: 69%" class="block justify-between mx-auto mt-3">
+  <div
+    v-if="invoices.length > 0 && !loading"
+    style="width: 69%"
+    class="block justify-between mx-auto mt-3"
+  >
     <div class="flex justify-between items-center mb-4 mt-8">
       <a class="ml-1 text-blue-500 text-md underline cursor-pointer"> Select All |</a>
       <a style="margin-left: -20%" class="ml-1 text-blue-500 text-md underline cursor-pointer">
