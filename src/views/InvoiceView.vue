@@ -2,34 +2,52 @@
 //@ts-ignore
 import NavBar from '@/components/navbar/NavBar.vue'
 //@ts-ignore
-import { ref } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 //@ts-ignore
-import { useAxiosRequestWithToken } from '@/utils/service/axios_api'
+import {
+  useAxiosRequestWithToken,
+  useAxiosRequestWithTokenForImage //@ts-ignore
+} from '@/utils/service/axios_api'
+//@ts-ignore
+import AxiosFormData from 'axios-form-data'
 //@ts-ignore
 import { ApiRoutes } from '@/utils/service/endpoints/api'
 import { useRouter } from 'vue-router'
 //@ts-ignore
 import { getToken } from '@/stores/token'
 //@ts-ignore
-import type { IDirectory } from '@/utils/interface/directory/IDirectory'
+import type { IDirectory, ISubdirectory } from '@/utils/interface/directory/IDirectory'
 //@ts-ignore
 import type { IDataFile } from '@/utils/interface/file/IDataFile'
 //@ts-ignore
 import type { IInvoice } from '@/utils/interface/invoice/IInvoice'
 //@ts-ignore
+import type { IInvoiceKey, IListKeys } from '@/utils/interface/invoiceKey/IInvoiceKey'
+//@ts-ignore
 import { useToast } from 'vue-toast-notification'
 import 'vue-toast-notification/dist/theme-sugar.css'
 //@ts-ignore
 import { getUser } from '@/stores/user'
+import axios from 'axios'
 const token = getToken() as string
 const router = useRouter()
 const toast = useToast()
 const directories = ref<Array<IDirectory>>([{} as IDirectory])
+const subDirectories = ref<Array<ISubdirectory>>([{} as ISubdirectory])
+const invoiceKeys = ref<Array<IInvoiceKey>>([{} as IInvoiceKey])
 const isDragging = ref<Boolean>(false)
 const dragText = ref('Drag and drop images here or <span class="select">Browse</span>')
 const url = ref<Array<IDataFile>>([])
 const images = ref<Array<IDataFile>>([])
+const tabPicture = ref<any>()
 const user = getUser()
+const fileInput = ref()
+const msg = ref('')
+const file = ref()
+const open = ref(false)
+const fileName = computed(() => file.value?.name)
+const fileExtension = computed(() => fileName.value?.substr(fileName.value?.lastIndexOf('.') + 1))
+const fileMimeType = computed(() => file.value?.type)
 
 const getCurrentDate = () => {
   var date = new Date()
@@ -39,19 +57,190 @@ const getCurrentDate = () => {
   return `${year}-${month}-${day}`
 }
 
-// const invoice = ref<IInvoice>({
-//   InvoiceCode: '',
-//   InvoiceDesc: '',
-//   InvoiceBarCode: '',
-//   DirectoryFId: 0,
-//   subFolder: 0,
-//   InvoiceKeyFId: 0,
-//   dataCreated: '',
-//   UserFId: user!.UserId,
-//   InvoiceDate: getCurrentDate(),
-//   BranchFId: user!.user.branch.BranchId,
-//   images: []
-// })
+const removeImageList = (indice: number) => {
+  url.value.splice(indice, 1)
+  images.value.slice(indice, 1)
+}
+
+const invoice = ref<IInvoice>({
+  ClientPhone: '',
+  InvoiceCode: '',
+  InvoiceDesc: '',
+  InvoiceBarCode: '',
+  DirectoryFId: 0,
+  subFolder: 0,
+  InvoiceKeyFId: 0,
+  dataCreated: '',
+  InvoicePath: '',
+  ClientName: '',
+  ExpiredDate: getCurrentDate(),
+  AndroidVersion: '',
+  UserFId: user!.UserId,
+  InvoiceDate: getCurrentDate(),
+  BranchFId: user!.BranchFId,
+  dateFrom: '',
+  dateTo: '',
+  images: [],
+  isActive: false
+})
+
+const getAllDirectories = async () => {
+  await useAxiosRequestWithToken(token)
+    .get(`${ApiRoutes.allDirectories}`)
+    .then(function (response) {
+      directories.value = response.data.directories as Array<IDirectory>
+      console.log(directories.value)
+    })
+    .catch(function (error) {
+      console.log(error)
+    })
+    .finally(function () {})
+}
+
+const getAllSubDirectories = async () => {
+  await useAxiosRequestWithToken(token)
+    .get(`${ApiRoutes.allSubdirectories}`)
+    .then(function (response) {
+      subDirectories.value = response.data.subdirectories as Array<ISubdirectory>
+      console.log(subDirectories.value)
+    })
+    .catch(function (error) {
+      console.log(error)
+    })
+    .finally(function () {})
+}
+
+const getAllInvoiceKeys = async () => {
+  await useAxiosRequestWithToken(token)
+    .get(`${ApiRoutes.allInvoicesKeys}`)
+    .then(function (response) {
+      invoiceKeys.value = response.data.invoiceKeys as Array<IInvoiceKey>
+      console.log(invoiceKeys.value)
+    })
+    .catch(function (error) {
+      console.log(error)
+    })
+    .finally(function () {})
+}
+
+watchEffect(async () => {
+  try {
+    await getAllDirectories()
+    await getAllInvoiceKeys()
+    await getAllSubDirectories()
+  } catch (error) {
+    console.log(error)
+  }
+})
+
+const updateSelections = () => {
+  invoice.value.DirectoryFId = 0
+  invoice.value.DirectoryFId = 0
+}
+const updateFilter = () => {
+  filteredInvoiceKeys()
+  filteredSubDirectories()
+}
+
+const filteredInvoiceKeys = () =>
+  invoiceKeys.value.filter((key: any) => key.DirectoryFId == invoice.value.DirectoryFId)
+
+const filteredSubDirectories = () =>
+  subDirectories.value.filter((sub) => sub.DirectoryFId == invoice.value.DirectoryFId)
+
+const isEnabled = ref<Boolean>(true)
+
+const getAllInvoices = async () => {
+  await useAxiosRequestWithToken(token)
+    .get(`${ApiRoutes.allInvoices}`)
+    .then(function (response) {
+      invoice.value = response.data
+      console.log(directories.value)
+    })
+    .catch(function (error) {
+      console.log(error)
+    })
+    .finally(function () {})
+}
+
+const clear = () => {
+  invoice.value.InvoiceBarCode = ''
+  invoice.value.InvoiceDate = getCurrentDate()
+  invoice.value.InvoiceCode = ''
+  invoice.value.InvoiceDesc = ''
+  invoice.value.DirectoryFId = 0
+  invoice.value.InvoiceKeyFId = 0
+  url.value = []
+}
+
+const createInvoice = async () => {
+  open.value = true
+  const date = new Date()
+  const formData = new FormData()
+  const milliseconds = date.getSeconds() * 1000
+  invoice.value.AndroidVersion = navigator.userAgent
+  invoice.value.InvoicePath = 'test'
+  const data = JSON.parse(JSON.stringify(invoice.value))
+  if (images.value.length > 0) {
+    formData.append('image[]', images.value[0].content)
+  }
+  const axiosInstance = axios.create()
+  axiosInstance.defaults.transformRequest = AxiosFormData
+
+  await useAxiosRequestWithToken(token)
+    .post(`${ApiRoutes.addInvoice}`, data)
+    .then(function (response) {
+      //success
+      if (response.data.status === 201) {
+        images.value.forEach(async (v, k) => {
+          const formData = new FormData()
+          formData.append('image', v.content)
+          formData.append('uniqueId', `${milliseconds}`)
+          formData.append('InvoiceFId', `${response.data.invoiceId}`)
+          // for (let [key, value] of formData.entries()) {
+          //   console.log('ethogange', key, value)
+          // }
+
+          await useAxiosRequestWithTokenForImage(token)
+            .post(`${ApiRoutes.addImage}`, formData)
+            .then(function (rep) {
+              if (images.value.length - 1 == k) {
+                toast.open({
+                  message: "'Enregistremet réussi avec succès",
+                  type: 'success',
+                  position: 'bottom',
+                  duration: 5000
+                })
+
+                clear()
+                const data: any = rep.data.image
+                console.log('ethberg---------->', data)
+                tabPicture.value = data
+              }
+            })
+            .catch(function (error) {
+              // erreur
+              toast.open({
+                message: "Erreur lors de l'upload des images",
+                type: 'error',
+                position: 'bottom',
+                duration: 5000
+              })
+            })
+        })
+      }
+    })
+    .catch(function (error) {
+      //error
+      toast.open({
+        message: error.response.data.message,
+        type: 'error',
+        position: 'bottom',
+        duration: 5000
+      })
+    })
+  open.value = false
+}
 
 const dragover = (e: any) => {
   e.preventDefault()
@@ -114,30 +303,6 @@ const uploadFile = (event: any) => {
     images.value.push(data)
   }
 }
-
-const fileInput = ref()
-const directory = ref<IDirectory>({
-  DirectoryName: '',
-  ParentFId: 0,
-  Available: false,
-  ForClient: false
-})
-const DirectoryName = directory.value.DirectoryName
-const getAllDirectories = () => {
-  useAxiosRequestWithToken(token)
-    .get(`${ApiRoutes.changePassword}`)
-    .then(function (response) {
-      //success
-      directories.value = response.data as Array<IDirectory>
-      console.log(directories.value)
-    })
-    .catch(function (error) {
-      //error
-    })
-}
-const ici = async () => {
-  await getAllDirectories()
-}
 </script>
 <template>
   <NavBar />
@@ -154,12 +319,19 @@ const ici = async () => {
           <h1 class="text-black text-left text-lg">Invoice</h1>
         </div>
         <div class="w-full">
-          <form class="px-8 pb-10" method="post">
+          <form
+            class="px-8 pb-10"
+            method="post"
+            @submit.prevent="createInvoice"
+            enctype="multipart/form-data"
+          >
             <div class="flex flex-col space-y-3">
               <div class="flex space-x-2 mt-4">
                 <div class="flex flex-col items-start w-full">
                   <label for="Code" class="text-lg mb-2 text-black">Code</label>
                   <input
+                    v-model="invoice.InvoiceCode"
+                    required
                     type="text"
                     id="Code"
                     name="Code"
@@ -170,6 +342,7 @@ const ici = async () => {
                 <div class="flex flex-col items-start w-full">
                   <label for="Description" class="text-lg mb-2 text-black">Description</label>
                   <input
+                    v-model="invoice.InvoiceDesc"
                     type="text"
                     id="Description"
                     placeholder="Enter Description"
@@ -181,27 +354,36 @@ const ici = async () => {
               <div class="flex flex-col items-start w-full">
                 <label for="Folder" class="text-lg mb-2 text-black">Folder</label>
                 <select
+                  v-model="invoice.DirectoryFId"
                   id="Folder"
                   name="Folder"
+                  @change="updateFilter()"
                   class="w-full text-black pr-3 pl-3 py-2 rounded border-2 border-gray-200 outline-none focus:border-gray-500"
                 >
-                  <option value="" class="text-gray-400">Select branch</option>
-                  <option value="Folder1">Branch 1</option>
-                  <option value="Folder2">Branch 2</option>
-                  <option value="Folder3">Branch 3</option>
+                  <option
+                    v-for="item in directories"
+                    :Key="item.DirectoryId"
+                    :value="item.DirectoryId"
+                  >
+                    {{ item.DirectoryName }}
+                  </option>
                 </select>
               </div>
               <div class="flex flex-col items-start w-full">
                 <label for="SubFolder" class="text-lg mb-2 text-black">Sub Folder</label>
                 <select
+                  v-model="invoice.subFolder"
                   id="SubFolder"
                   name="SubFolder"
                   class="w-full text-black pr-3 pl-3 py-2 rounded border-2 border-gray-200 outline-none focus:border-gray-500"
                 >
-                  <option value="" class="text-gray-400">Select branch</option>
-                  <option value="Folder1">Branch 1</option>
-                  <option value="Folder2">Branch 2</option>
-                  <option value="Folder3">Branch 3</option>
+                  <option
+                    v-for="item in filteredSubDirectories()"
+                    :Key="item.DirectoryFId"
+                    :value="item.SubDirectoryId"
+                  >
+                    {{ item.SubDirectoryName }}
+                  </option>
                 </select>
               </div>
               <div class="flex space-x-2 mt-4">
@@ -209,6 +391,7 @@ const ici = async () => {
                   <label for="BarCode" class="text-lg mb-2 text-black">BarCode</label>
                   <input
                     type="text"
+                    v-model="invoice.InvoiceBarCode"
                     id="BarCode"
                     name="BarCode"
                     placeholder="Enter BarCode"
@@ -218,6 +401,7 @@ const ici = async () => {
                 <div class="flex flex-col items-start w-full">
                   <label for="Date" class="text-lg mb-2 text-black">Date</label>
                   <input
+                    v-model="invoice.InvoiceDate"
                     type="date"
                     id="Date"
                     name="Date"
@@ -227,27 +411,40 @@ const ici = async () => {
               </div>
               <div class="flex flex-col items-start w-full">
                 <label for="Key" class="text-lg mb-2 text-black w-1/4">Key</label>
-                <input
-                  type="text"
+                <select
+                  v-model="invoice.InvoiceKeyFId"
                   id="Key"
                   name="Key"
-                  placeholder="Enter Key"
                   class="w-full text-black pr-3 pl-3 py-2 rounded border-2 border-gray-200 outline-none focus:border-gray-500"
-                />
+                >
+                  <option
+                    v-for="key in filteredInvoiceKeys()"
+                    :key="key.DirectoryFId"
+                    :value="key.InvoiceKeyId"
+                  >
+                    {{ key.Invoicekey }}
+                  </option>
+                </select>
               </div>
             </div>
 
             <!-- Submit Buttons -->
             <div class="flex flex-col items-start">
               <div class="flex space-x-2 mt-3">
-                <button class="bg-blue-400 rounded-md text-white text-lg px-6 py-2" type="submit">
-                  <i class="fa-solid fa-floppy-disk mr-2"></i>
-                  Submit
+                <button
+                  class="bg-blue-400 rounded-md text-white text-lg px-6 py-2"
+                  type="submit"
+                  :disabled="open"
+                >
+                  <i v-if="!open" class="fa-solid fa-floppy-disk mr-2"></i>
+                  <span v-if="!open">Submit</span>
+                  <i v-else class="fa fa-spinner fa-spin"></i>
                 </button>
                 <button
                   class="bg-gray-400 rounded-md text-white text-lg px-6 py-2"
                   type="button"
-                  onclick="window.history.back();"
+                  @click="clear()"
+                  :disabled="open"
                 >
                   <i class="fa-solid fa-arrow-left mr-2"></i>
                   Retour
