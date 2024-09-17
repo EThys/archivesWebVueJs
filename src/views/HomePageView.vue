@@ -11,21 +11,35 @@ import { getToken } from '@/stores/token'
 //@ts-ignore
 import { getUser } from '@/stores/user'
 //@ts-ignore
+import { useToast } from 'vue-toast-notification'
+//@ts-ignore
 import type { IInvoice } from '@/utils/interface/invoice/IInvoice'
 const searchTerm = ref('')
 import axios from 'axios'
 
 const token = getToken() as string
+const toast = useToast()
 const isCategorySearchOpen = ref(false)
 const user = getUser()
+const searching = ref<Boolean>(false)
 const isChecked = ref<boolean>(false)
 const selectedItem = ref('All')
 const showSortOptions = ref<boolean>(false)
 const advancedSearch = ref<boolean>(false)
-const invoices = ref([])
+const invoices = ref<Array<IInvoice>>([{} as IInvoice])
 const currentPage = ref(1)
 const totalPages = ref(0)
 const perPage = ref(20)
+const totalInvoices = ref(0)
+const selectedInvoiceIds = ref(new Set())
+
+const toggleSelectInvoice = (invoiceId: any) => {
+  if (selectedInvoiceIds.value.has(invoiceId)) {
+    selectedInvoiceIds.value.delete(invoiceId)
+  } else {
+    selectedInvoiceIds.value.add(invoiceId)
+  }
+}
 
 const toggleSortOptions = () => {
   showSortOptions.value = !showSortOptions.value
@@ -51,31 +65,33 @@ const getCurrentDate = () => {
   var day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
-const invoice = ref<IInvoice>({
-  ClientPhone: '',
-  InvoiceCode: '',
-  InvoiceDesc: '',
-  InvoiceBarCode: '',
-  DirectoryFId: 0,
-  subFolder: 0,
-  InvoiceKeyFId: 0,
-  dataCreated: '',
-  InvoicePath: '',
-  ClientName: '',
-  ExpiredDate: getCurrentDate(),
-  AndroidVersion: '',
-  UserFId: user!.UserId,
-  InvoiceDate: getCurrentDate(),
-  BranchFId: user!.BranchFId,
-  dateFrom: '',
-  dateTo: '',
-  images: [],
-  isActive: false
-})
+// const invoice = ref<IInvoice>({
+//   InvoiceId
+//   ClientPhone: '',
+//   InvoiceCode: '',
+//   InvoiceDesc: '',
+//   InvoiceBarCode: '',
+//   DirectoryFId: 0,
+//   subFolder: 0,
+//   InvoiceKeyFId: 0,
+//   dataCreated: '',
+//   InvoicePath: '',
+//   ClientName: '',
+//   ExpiredDate: getCurrentDate(),
+//   AndroidVersion: '',
+//   UserFId: user!.UserId,
+//   InvoiceDate: getCurrentDate(),
+//   BranchFId: user!.BranchFId,
+//   dateFrom: '',
+//   dateTo: '',
+//   images: [],
+//   isActive: false
+// })
 const loading = ref(false)
 const pagination = ref()
 
 const searchInvoices = async () => {
+  searching.value = true
   loading.value = true
   const searchParams = new URLSearchParams()
   let key
@@ -92,18 +108,77 @@ const searchInvoices = async () => {
 
   searchParams.append(key, searchTerm.value)
   searchParams.append('per_page', perPage.value.toString())
+  searchParams.append('page', currentPage.value.toString())
 
   try {
     const response = await useAxiosRequestWithToken(token).get(
       `${ApiRoutes.searchInvoice}?${searchParams.toString()}`
     )
     invoices.value = response.data.data.data
-    pagination.value = response.data.data // Pagination data
+    pagination.value = response.data
+    totalInvoices.value = response.data.data.total
+    totalPages.value = response.data.data.last_page
     console.log('eeeeeeeebababa', pagination.value)
+    console.log('mutu munene', totalInvoices.value)
+    console.log('mutu munene', totalPages.value)
   } catch (error) {
     console.log(error)
   }
   loading.value = false
+}
+const changePage = (page: any) => {
+  if (page > 0 && page <= totalPages.value) {
+    currentPage.value = page
+    searchInvoices()
+  }
+}
+const downloadSelected = () => {
+  // Implement the download logic here
+  console.log('Downloading invoices:', [...selectedInvoiceIds.value])
+}
+const deleteInvoice = async (invoiceId: any) => {
+  try {
+    if (window.confirm('Do you want to delete this invoice?')) {
+      const response = await useAxiosRequestWithToken(token).delete(
+        `${ApiRoutes.deleteInvoice}/${invoiceId}`
+      )
+
+      if (response.data.status === 200) {
+        toast.open({
+          message: 'Suppression réussie',
+          type: 'success',
+          position: 'bottom',
+          duration: 5000
+        })
+        setTimeout(() => searchInvoices(), 1000)
+      } else {
+        toast.open({
+          message: 'Erreur lors de la suppression',
+          type: 'error',
+          position: 'bottom',
+          duration: 5000
+        })
+      }
+    }
+  } catch (error) {
+    console.error('Erreur du serveur', error)
+    toast.open({
+      message: 'Erreur du serveur',
+      type: 'error',
+      position: 'bottom',
+      duration: 5000
+    })
+  }
+}
+
+const selectAllInvoices = () => {
+  invoices.value.forEach((invoice) => {
+    selectedInvoiceIds.value.add(invoice.InvoiceId)
+  })
+}
+
+const deselectAllInvoices = () => {
+  selectedInvoiceIds.value.clear()
 }
 
 const selectItem = (item: string) => {
@@ -454,52 +529,87 @@ const toggleCategorySearchOpen = () => {
   </div>
   <div
     style="width: 69%"
-    v-if="invoices.length < 0 && !loading"
+    v-if="searching && invoices.length == 0 && !loading"
     class="block justify-between mx-auto mt-8 text-center text-white bg-red-400 py-4 rounded-sm"
   >
     No results found
   </div>
+  <div v-if="selectedInvoiceIds.size > 0" class="fixed bottom-4 left-4">
+    <button
+      @click="downloadSelected"
+      class="relative flex items-center bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+    >
+      <span
+        class="absolute top-0 right-0 -mt-2 -mr-2 bg-black text-white text-xs rounded-full h-6 w-6 flex items-center justify-center"
+      >
+        {{ selectedInvoiceIds.size }}
+      </span>
+      <i class="fa-solid fa-download mr-2"></i>
+      Download
+    </button>
+  </div>
   <div
-    v-if="invoices.length > 0 && !loading"
+    v-if="searching && !loading && invoices.length > 0"
     style="width: 69%"
     class="block justify-between mx-auto mt-3"
   >
     <div class="flex justify-between items-center mb-4 mt-8">
-      <a class="ml-1 text-blue-500 text-md underline cursor-pointer"> Select All |</a>
-      <a style="margin-left: -20%" class="ml-1 text-blue-500 text-md underline cursor-pointer">
-        Deselect All
-      </a>
-      <div class="flex space-x-2">
-        <button class="bg-gray-300 text-blue-400 py-2 px-4 rounded">Prev</button>
-        <button class="bg-blue-400 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded">
-          1
-        </button>
-        <button class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">
-          2
-        </button>
-        <button class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">
-          3
-        </button>
-        <span class="text-gray-500">...</span>
-        <button class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">
-          15
-        </button>
-        <button class="bg-gray-300 text-gray-800 py-2 px-4 rounded">Next</button>
+      <div class="flex">
+        <a @click="selectAllInvoices()" class="ml-1 text-blue-500 text-md underline cursor-pointer">
+          Select All
+        </a>
+        <a
+          @click="deselectAllInvoices()"
+          class="ml-1 text-blue-500 text-md underline cursor-pointer"
+        >
+          | Deselect All
+        </a>
       </div>
-      <span class="text-gray-500" v-if="invoices.length > 20">
-        1 to 20 of {{ invoices.length }}
-      </span>
-      <span class="text-gray-500" v-else>
-        1 to {{ invoices.length }} of {{ invoices.length }}
+
+      <div class="flex space-x-2">
+        <button
+          class="bg-gray-300 text-black hover:bg-blue-500 hover:text-white py-2 px-4 rounded"
+          :disabled="currentPage === 1"
+          @click="changePage(currentPage - 1)"
+        >
+          Prev
+        </button>
+        <button
+          v-for="page in totalPages"
+          :key="page"
+          :class="{
+            'bg-blue-400 text-white': page === currentPage,
+            'bg-gray-300 text-gray-800 hover:text-white ': page !== currentPage
+          }"
+          class="hover:bg-blue-500 font-bold py-2 px-4 rounded"
+          @click="changePage(page)"
+        >
+          {{ page }}
+        </button>
+        <button
+          class="bg-gray-300 text-black hover:bg-blue-500 hover:text-white py-2 px-4 rounded"
+          :disabled="currentPage === totalPages"
+          @click="changePage(currentPage + 1)"
+        >
+          Next
+        </button>
+      </div>
+      <span class="text-gray-500">
+        {{ (currentPage - 1) * perPage + 1 }} to
+        {{ Math.min(currentPage * perPage, totalInvoices) }} of
+        {{ totalInvoices }}
       </span>
     </div>
 
     <div
       v-for="invoice in invoices"
-      :key="invoice"
+      :Key="invoice"
       class="relative overflow-x-auto shadow-md sm:rounded-sm border mb-3 border-gray-200"
     >
       <table
+        :class="{
+          'border-2 border-red-500': selectedInvoiceIds.has(invoice.InvoiceId)
+        }"
         class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400 custom-table"
       >
         <tbody>
@@ -511,7 +621,7 @@ const toggleCategorySearchOpen = () => {
               Id
             </th>
             <td class="px-6 py-2 border-r border-gray-300 dark:border-gray-600 w-1/4">
-              {{ invoice.invoiceId }}
+              {{ invoice.InvoiceId }}
             </td>
           </tr>
           <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
@@ -615,7 +725,10 @@ const toggleCategorySearchOpen = () => {
                 >
                   Edit
                 </button>
-                <button class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                <button
+                  @click="deleteInvoice(invoice.InvoiceId)"
+                  class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                >
                   Delete
                 </button>
                 <button
@@ -624,6 +737,7 @@ const toggleCategorySearchOpen = () => {
                   Save
                 </button>
                 <button
+                  @click="toggleSelectInvoice(invoice.InvoiceId)"
                   class="select bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
                 >
                   Select
