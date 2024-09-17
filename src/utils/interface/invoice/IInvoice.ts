@@ -4,6 +4,7 @@ import type { InvoiceKey } from '../invoiceKey/IInvoiceKey'
 import type { IUser } from '../user/IUser'
 
 export interface IInvoice {
+  InvoiceId: Number
   InvoiceCode: String
   InvoiceDesc: String
   InvoiceBarCode: string

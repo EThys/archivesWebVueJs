@@ -63,6 +63,7 @@ const removeImageList = (indice: number) => {
 }
 
 const invoice = ref<IInvoice>({
+  InvoiceId: 0,
   ClientPhone: '',
   InvoiceCode: '',
   InvoiceDesc: '',
