@@ -5,13 +5,9 @@ export interface IUser {
   SerialNumber: String
   IsAdmin: Number
   BranchFId: Number
-  user: {
-    UserName: string
-    IsAdmin: number
-    branch: {
-      BranchId: Number
-      BranchName: string
-    }
+  branch: {
+    BranchId: Number
+    BranchName: string
   }
 }
 

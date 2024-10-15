@@ -1,4 +1,4 @@
-import type { IDirectory } from '../directory/IDirectory'
+import type { IDirectory, ISubdirectory } from '../directory/IDirectory'
 import type { IImage } from '../image/IImage'
 import type { InvoiceKey } from '../invoiceKey/IInvoiceKey'
 import type { IUser } from '../user/IUser'
@@ -14,7 +14,7 @@ export interface IInvoice {
   InvoiceDate: String
   BranchFId: Number
   user?: IUser
-  images: Array<IImage>
+  images?: IImage
   directory?: IDirectory
   InvoiceKeyFId: number
   dataCreated: string

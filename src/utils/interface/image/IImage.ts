@@ -15,6 +15,12 @@ export interface IPrevPicture {
   PublicUrl: string
 }
 
+export interface IMedia {
+  thumb: string
+  src: string
+  caption: string
+}
+
 export interface IAllData {
   current_page: number
   data: Array<IInvoice>
