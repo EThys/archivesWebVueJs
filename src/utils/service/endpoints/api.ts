@@ -5,6 +5,7 @@ export const ApiRoutes = {
   changePassword: 'changePassword',
   //route for directory
   allDirectories: 'allDirectories',
+  allBranches: 'allBranches',
   //route for invoice
   addInvoice: 'addInvoice',
   allInvoices: 'allInvoices',
@@ -12,6 +13,7 @@ export const ApiRoutes = {
   searchInvoice: '/invoices/filter', //this is for search
   //routes for images
   addImage: '/images/store',
+  allImage: '/images/all',
   updateImage: 'images/update/{id}',
   // deleteImage: 'deleteInvoice/{id}',
   //route for invoiceKeys
