@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, watchEffect } from 'vue'
 //@ts-ignore
 import NavBar from '@/components/navbar/NavBar.vue'
 //@ts-ignore
@@ -16,7 +16,25 @@ import { useToast } from 'vue-toast-notification'
 import type { IInvoice } from '@/utils/interface/invoice/IInvoice'
 const searchTerm = ref('')
 import axios from 'axios'
+//@ts-ignore
+import type { IImage } from '@/utils/interface/image/IImage'
+import { useRouter } from 'vue-router'
+//@ts-ignore
+import FsLightbox from 'fslightbox-vue/v3'
+//@ts-ignore
+import type { IDirectory } from '@/utils/interface/directory/IDirectory'
+//@ts-ignore
+import type { IInvoiceKey } from '@/utils/interface/invoiceKey/IInvoiceKey'
+//@ts-ignore
+import type { IBranch } from '@/utils/interface/branch/IBranch'
+import Multiselect from '@vueform/multiselect'
 
+const fsLightbox = FsLightbox
+const lightboxToggler = ref(false)
+const media = ref<Array<String>>([])
+const customAttributes = ref<Array<String>>([])
+const imageUrls = ref([])
+const router = useRouter()
 const token = getToken() as string
 const toast = useToast()
 const isCategorySearchOpen = ref(false)
@@ -32,6 +50,11 @@ const totalPages = ref(0)
 const perPage = ref(20)
 const totalInvoices = ref(0)
 const selectedInvoiceIds = ref(new Set())
+const images = ref<Array<IImage>>([{} as IImage])
+const baseUrl = 'http://localhost:8000'
+const directories = ref<Array<IDirectory>>([{} as IDirectory])
+const invoiceKeys = ref<Array<IInvoiceKey>>([{} as IInvoiceKey])
+const branches = ref<Array<IBranch>>([{} as IBranch])
 
 const toggleSelectInvoice = (invoiceId: any) => {
   if (selectedInvoiceIds.value.has(invoiceId)) {
@@ -39,6 +62,78 @@ const toggleSelectInvoice = (invoiceId: any) => {
   } else {
     selectedInvoiceIds.value.add(invoiceId)
   }
+}
+
+const getAllBranches = async () => {
+  await useAxiosRequestWithToken(token)
+    .get(`${ApiRoutes.allBranches}`)
+    .then(function (response) {
+      branches.value = response.data.branchs as Array<IBranch>
+      console.log('hakunamatata', branches.value)
+    })
+    .catch(function (error) {
+      console.log(error)
+    })
+    .finally(function () {})
+}
+
+const getAllDirectories = async () => {
+  await useAxiosRequestWithToken(token)
+    .get(`${ApiRoutes.allDirectories}`)
+    .then(function (response) {
+      directories.value = response.data.directories as Array<IDirectory>
+      console.log(directories.value)
+    })
+    .catch(function (error) {
+      console.log(error)
+    })
+    .finally(function () {})
+}
+const getAllInvoicesKeys = async () => {
+  await useAxiosRequestWithToken(token)
+    .get(`${ApiRoutes.allInvoicesKeys}`)
+    .then(function (response) {
+      invoiceKeys.value = response.data.invoiceKeys as Array<IInvoiceKey>
+      console.log('mutanba', invoiceKeys.value)
+    })
+    .catch(function (error) {
+      console.log(error)
+    })
+    .finally(function () {})
+}
+
+watchEffect(async () => {
+  try {
+    await getAllDirectories()
+    await getAllInvoicesKeys()
+    await getAllBranches()
+  } catch (error) {
+    console.log(error)
+  }
+})
+
+const Images = async () => {
+  await useAxiosRequestWithToken(token)
+    .get(`${ApiRoutes.allImage}`)
+    .then(function (response) {
+      images.value = response.data.images as Array<IImage>
+      console.log(images.value)
+    })
+    .catch(function (error) {
+      console.log(error)
+    })
+    .finally(function () {})
+}
+const slide = ref(1)
+const toggler = ref<Boolean>(false)
+
+const getPict = (data: any, value: number) => {
+  media.value = []
+  toggler.value = !toggler.value
+  media.value = data.map((v: IImage) => `${baseUrl}${v.PublicUrl}`)
+  slide.value = value + 1
+
+  console.log('MUWOLA', media.value)
 }
 
 const toggleSortOptions = () => {
@@ -65,30 +160,38 @@ const getCurrentDate = () => {
   var day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
-// const invoice = ref<IInvoice>({
-//   InvoiceId
-//   ClientPhone: '',
-//   InvoiceCode: '',
-//   InvoiceDesc: '',
-//   InvoiceBarCode: '',
-//   DirectoryFId: 0,
-//   subFolder: 0,
-//   InvoiceKeyFId: 0,
-//   dataCreated: '',
-//   InvoicePath: '',
-//   ClientName: '',
-//   ExpiredDate: getCurrentDate(),
-//   AndroidVersion: '',
-//   UserFId: user!.UserId,
-//   InvoiceDate: getCurrentDate(),
-//   BranchFId: user!.BranchFId,
-//   dateFrom: '',
-//   dateTo: '',
-//   images: [],
-//   isActive: false
-// })
+
 const loading = ref(false)
 const pagination = ref()
+
+const showData = (value: any) => {
+  const { href } = router.resolve({
+    path: '/invoice',
+    query: { value }
+  })
+  window.open(href, '_blank')
+}
+
+const code = ref('')
+const description = ref('')
+const barcode = ref('')
+const branchName = ref('')
+const Selectdirectories = ref([])
+const SelectinvoicesKeys = ref([])
+const selectedBranches = ref([])
+const dateFrom = ref('')
+const dateTo = ref('')
+
+const clearFields = () => {
+  code.value = ''
+  description.value = ''
+  barcode.value = ''
+  dateFrom.value = ''
+  dateTo.value = ''
+  Selectdirectories.value = []
+  SelectinvoicesKeys.value = []
+  selectedBranches.value = []
+}
 
 const searchInvoices = async () => {
   searching.value = true
@@ -102,11 +205,36 @@ const searchInvoices = async () => {
     case 'Description':
       key = 'InvoiceDesc'
       break
+    case 'BranchName':
+      key = 'BranchName'
+      break
+    case 'Date':
+      key = 'ExpiredDate'
+      break
     default:
       key = `Invoice${selectedItem.value}`
   }
 
   searchParams.append(key, searchTerm.value)
+
+  if (code.value) searchParams.append('InvoiceCode', code.value)
+  if (description.value) searchParams.append('InvoiceDesc', description.value)
+  if (barcode.value) searchParams.append('InvoiceBarCode', barcode.value)
+  if (barcode.value) searchParams.append('InvoiceBarCode', barcode.value)
+  if (branchName.value) searchParams.append('BranchName', branchName.value)
+  Selectdirectories.value.forEach((directory) => {
+    searchParams.append('DirectoryName', directory)
+  })
+  SelectinvoicesKeys.value.forEach((invoiceKey) => {
+    searchParams.append('Invoicekey', invoiceKey)
+  })
+  selectedBranches.value.forEach((branch) => {
+    searchParams.append('BranchName', branch)
+  })
+
+  if (dateFrom.value) searchParams.append('date_from', dateFrom.value)
+  if (dateTo.value) searchParams.append('date_to', dateTo.value)
+  // if (SelectinvoicesKeys.value) searchParams.append('Invoicekey', SelectinvoicesKeys.value)
   searchParams.append('per_page', perPage.value.toString())
   searchParams.append('page', currentPage.value.toString())
 
@@ -118,7 +246,7 @@ const searchInvoices = async () => {
     pagination.value = response.data
     totalInvoices.value = response.data.data.total
     totalPages.value = response.data.data.last_page
-    console.log('eeeeeeeebababa', pagination.value)
+    console.log('eeeeeeeebababa', invoices.value)
     console.log('mutu munene', totalInvoices.value)
     console.log('mutu munene', totalPages.value)
   } catch (error) {
@@ -126,6 +254,20 @@ const searchInvoices = async () => {
   }
   loading.value = false
 }
+
+const getImagesWithMatchingInvoiceId = (currentInvoiceId: any) => {
+  try {
+    const matchedImages = images.value.filter((image) =>
+      invoices.value.some((invoice) => currentInvoiceId == image.InvoiceFId)
+    ).length
+
+    console.log('Matched Images:', matchedImages)
+    return matchedImages
+  } catch (error) {
+    console.log('Error fetching matched images:', error)
+  }
+}
+
 const changePage = (page: any) => {
   if (page > 0 && page <= totalPages.value) {
     currentPage.value = page
@@ -190,6 +332,19 @@ const toggleSwitch = () => {
 }
 const toggleCategorySearchOpen = () => {
   isCategorySearchOpen.value = !isCategorySearchOpen.value
+}
+const handleSelect = (selected: any) => {
+  console.log('Selected directories:', selected)
+}
+
+const getDirectoryNames = (directories: any) => {
+  return directories.map((directory: any) => directory.DirectoryName)
+}
+const getInvoicesNames = (invoiceKeys: any) => {
+  return invoiceKeys.map((invoiceKey: any) => invoiceKey.Invoicekey)
+}
+const getBranchesNames = (branches: any) => {
+  return branches.map((branche: any) => branche.BranchName)
 }
 </script>
 
@@ -291,8 +446,8 @@ const toggleCategorySearchOpen = () => {
       <span class="relative" @click="toggleSwitch">
         <input type="checkbox" class="sr-only" />
         <span
-          class="block h-6 w-14 rounded-full bg-gray-400 cursor-pointer transition-colors duration-300"
-          :class="{ 'bg-blue-500': isChecked }"
+          class="block h-6 w-14 rounded-full cursor-pointer transition-colors duration-300"
+          :class="{ 'bg-blue-500': isChecked, 'bg-gray-400': !isChecked }"
         >
           <span
             class="absolute top-1 left-1 block h-4 w-6 rounded-full bg-white transition-transform duration-300"
@@ -302,6 +457,7 @@ const toggleCategorySearchOpen = () => {
       </span>
       <span class="ml-2 text-gray-900 dark:text-gray-200">Images</span>
     </div>
+
     <div class="flex">
       <button @click="toggleSortOptions" class="flex text-blue-500 hover:text-blue-700">
         <svg
@@ -399,6 +555,7 @@ const toggleCategorySearchOpen = () => {
             <input
               type="text"
               id="code"
+              v-model="code"
               placeholder="Code"
               class="mt-1 p-2 w-full border border-gray-700 rounded-md"
             />
@@ -409,6 +566,7 @@ const toggleCategorySearchOpen = () => {
             >
             <input
               type="text"
+              v-model="description"
               id="description"
               placeholder="Description"
               class="mt-1 p-2 w-full border border-gray-700 rounded-md"
@@ -420,6 +578,7 @@ const toggleCategorySearchOpen = () => {
             >
             <input
               type="text"
+              v-model="barcode"
               id="barcode"
               placeholder="Barcode"
               class="mt-1 p-2 w-full border border-gray-700 rounded-md"
@@ -431,6 +590,7 @@ const toggleCategorySearchOpen = () => {
           <div>
             <label for="from" class="block text-sm font-medium mb-2 text-gray-300">From</label>
             <input
+              v-model="dateFrom"
               type="date"
               id="from"
               class="mt-1 p-2 w-full border border-gray-700 rounded-md"
@@ -438,7 +598,12 @@ const toggleCategorySearchOpen = () => {
           </div>
           <div>
             <label for="to" class="block text-sm font-medium mb-2 text-gray-300">To</label>
-            <input type="date" id="to" class="mt-1 p-2 w-full border border-gray-700 rounded-md" />
+            <input
+              v-model="dateTo"
+              type="date"
+              id="to"
+              class="mt-1 p-2 w-full border border-gray-700 rounded-md"
+            />
           </div>
           <div>
             <label for="users" class="block text-sm font-medium mb-2 text-gray-300">Users</label>
@@ -452,33 +617,48 @@ const toggleCategorySearchOpen = () => {
         </div>
         <div class="grid grid-cols-3 gap-4">
           <div>
-            <label for="users" class="block text-sm font-medium mb-2 text-gray-300"
-              >Directories</label
-            >
-            <select
-              id="users"
-              class="mt-1 text-gray-400 font-medium p-2 w-full border border-gray-700 rounded-md"
-            >
-              <option>Select directories</option>
-            </select>
+            <label for="directories" class="block text-sm font-medium mb-2 text-gray-300">
+              Directories
+            </label>
+            <Multiselect
+              v-model="Selectdirectories"
+              :options="getDirectoryNames(directories)"
+              :close-on-select="false"
+              track-by="DirectoryId"
+              label="DirectoryName"
+              placeholder="Select directories"
+              class="multiselect-green"
+              mode="tags"
+              @input="handleSelect"
+            />
           </div>
           <div>
-            <label for="users" class="block text-sm font-medium mb-2 text-gray-300">Keys</label>
-            <select
-              id="users"
-              class="mt-1 text-gray-400 font-medium p-2 w-full border border-gray-700 rounded-md"
-            >
-              <option>Select Keys</option>
-            </select>
+            <label for="keys" class="block text-sm font-medium mb-2 text-gray-300"> Keys </label>
+            <Multiselect
+              v-model="SelectinvoicesKeys"
+              :options="getInvoicesNames(invoiceKeys)"
+              :close-on-select="false"
+              track-by="Invoicekey"
+              label="Invoicekey"
+              placeholder="Select Keys"
+              class="multiselect-green"
+              mode="tags"
+            />
           </div>
           <div>
-            <label for="users" class="block text-sm font-medium mb-2 text-gray-300">Branches</label>
-            <select
-              id="users"
-              class="mt-1 text-gray-400 font-medium p-2 w-full border border-gray-700 rounded-md"
-            >
-              <option>Select branches</option>
-            </select>
+            <label for="branches" class="block text-sm font-medium mb-2 text-gray-300">
+              Branches
+            </label>
+            <Multiselect
+              v-model="selectedBranches"
+              :options="getBranchesNames(branches)"
+              :close-on-select="false"
+              track-by="BranchName"
+              label="BranchName"
+              placeholder="Select branches"
+              class="multiselect-green"
+              mode="tags"
+            />
           </div>
         </div>
 
@@ -507,12 +687,16 @@ const toggleCategorySearchOpen = () => {
         <div class="flex items-center justify-center">
           <input type="number" class="p-1 border text-black border-gray-700 mr-2 w-12" value="20" />
           <button
+            @click.prevent="searchInvoices()"
             class="bg-green-500 hover:bg-green-600 text-white font-medium text-sm py-2 px-4 mr-2 rounded"
           >
             <i class="fa-solid fa-magnifying-glass"></i>
             Search
           </button>
-          <button class="bg-yellow-300 text-black font-medium text-sm py-2 px-4 mr-2 rounded">
+          <button
+            @click="clearFields()"
+            class="bg-yellow-300 text-black font-medium text-sm py-2 px-4 mr-2 rounded"
+          >
             <i class="fa-solid fa-eraser"></i>
             Clear
           </button>
@@ -623,6 +807,62 @@ const toggleCategorySearchOpen = () => {
             <td class="px-6 py-2 border-r border-gray-300 dark:border-gray-600 w-1/4">
               {{ invoice.InvoiceId }}
             </td>
+            <td
+              rowspan="10"
+              class="px-6 py-2 border-r border-gray-300 dark:border-gray-600 w-1/2 align-top"
+            >
+              <div>
+                <div
+                  class="grid grid-cols-1 gap-3 sm:grid-cols-4 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-6 mb-24"
+                >
+                  <img
+                    v-if="isChecked"
+                    v-for="(item, index) in invoice.images"
+                    :key="item.InvoiceId"
+                    :alt="item.ImageName"
+                    class="object-cover w-full h-auto cursor-pointer"
+                    :src="`${baseUrl}${item.PublicUrl}`"
+                    @click="getPict(invoice.images, index)"
+                  />
+                  <span v-else class="w-[100px] h-[150px] mr-3"></span>
+                </div>
+              </div>
+              <div
+                :style="{ marginTop: isChecked ? '44%' : '1px' }"
+                class="bg-white p-4 border-gray-300 dark:bg-gray-800 dark:border-gray-700"
+              >
+                <div class="flex flex-row justify-center space-x-2">
+                  <button
+                    class="edit bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    @click="deleteInvoice(invoice.InvoiceId)"
+                    class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    class="save bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+                  >
+                    Save
+                  </button>
+                  <button
+                    @click="toggleSelectInvoice(invoice.InvoiceId)"
+                    class="select bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                  >
+                    Select
+                  </button>
+                  <button
+                    @click="showData(invoice.InvoiceId)"
+                    class="view bg-black text-white font-bold py-2 px-4 rounded"
+                  >
+                    View
+                  </button>
+                </div>
+              </div>
+            </td>
           </tr>
           <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
             <th
@@ -632,7 +872,7 @@ const toggleCategorySearchOpen = () => {
               Key
             </th>
             <td class="px-6 py-2 border-r border-gray-300 dark:border-gray-600 w-1/4">
-              {{ invoice.InvoiceKeyFId }}
+              {{ invoice.invoicekey?.Invoicekey }}
             </td>
           </tr>
           <tr class="bg-white border-b dark:bg-gray-800">
@@ -675,7 +915,9 @@ const toggleCategorySearchOpen = () => {
             >
               Username
             </th>
-            <td class="px-6 py-2 border-r border-gray-300 dark:border-gray-600 w-1/4">User123</td>
+            <td class="px-6 py-2 border-r border-gray-300 dark:border-gray-600 w-1/4">
+              {{ invoice.user?.UserName }}
+            </td>
           </tr>
           <tr class="bg-white border-b dark:bg-gray-800">
             <th
@@ -685,7 +927,7 @@ const toggleCategorySearchOpen = () => {
               Directory
             </th>
             <td class="px-6 py-2 border-r border-gray-300 dark:border-gray-600 w-1/4">
-              {{ invoice.DirectoryFId }}
+              {{ invoice.directory?.DirectoryName }}
             </td>
           </tr>
           <tr class="bg-white border-b dark:bg-gray-800">
@@ -696,7 +938,7 @@ const toggleCategorySearchOpen = () => {
               Branch
             </th>
             <td class="px-6 py-2 border-r border-gray-300 dark:border-gray-600 w-1/4">
-              {{ invoice.BranchFId }}
+              {{ invoice.user?.branch.BranchName }}
             </td>
           </tr>
           <tr class="bg-white border-b dark:bg-gray-800">
@@ -707,7 +949,7 @@ const toggleCategorySearchOpen = () => {
               Date
             </th>
             <td class="px-6 py-2 border-r border-gray-300 dark:border-gray-600 w-1/4">
-              {{ invoice.InvoiceDate }}
+              {{ invoice.ExpiredDate }}
             </td>
           </tr>
           <tr class="bg-white border-b dark:bg-gray-800">
@@ -717,39 +959,75 @@ const toggleCategorySearchOpen = () => {
             >
               Files
             </th>
-            <td class="px-6 py-2 border-r border-gray-300 dark:border-gray-600 w-1/4">file1.txt</td>
-            <td class="px-6 py-4 border-r border-gray-300 dark:border-gray-600 w-1/4">
-              <div class="flex justify-end space-x-2" aria-rowspan="10">
-                <button
-                  class="edit bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                >
-                  Edit
-                </button>
-                <button
-                  @click="deleteInvoice(invoice.InvoiceId)"
-                  class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-                >
-                  Delete
-                </button>
-                <button
-                  class="save bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
-                >
-                  Save
-                </button>
-                <button
-                  @click="toggleSelectInvoice(invoice.InvoiceId)"
-                  class="select bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                >
-                  Select
-                </button>
-                <button class="view bg-black text-white font-bold py-2 px-4 rounded">View</button>
-              </div>
+            <td class="px-6 py-2 border-r border-gray-300 dark:border-gray-600 w-1/4">
+              <a
+                href="invoice.images?.PublicUrl"
+                class="text-blue-500 font-bold no-underline hover:underline"
+              >
+                {{ invoice.images.length }} Files
+              </a>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
+    <div class="flex justify-between items-center mb-4 mt-8">
+      <div class="flex">
+        <a @click="selectAllInvoices()" class="ml-1 text-blue-500 text-md underline cursor-pointer">
+          Select All
+        </a>
+        <a
+          @click="deselectAllInvoices()"
+          class="ml-1 text-blue-500 text-md underline cursor-pointer"
+        >
+          | Deselect All
+        </a>
+      </div>
+
+      <div class="flex space-x-2">
+        <button
+          class="bg-gray-300 text-black hover:bg-blue-500 hover:text-white py-2 px-4 rounded"
+          :disabled="currentPage === 1"
+          @click="changePage(currentPage - 1)"
+        >
+          Prev
+        </button>
+        <button
+          v-for="page in totalPages"
+          :key="page"
+          :class="{
+            'bg-blue-400 text-white': page === currentPage,
+            'bg-gray-300 text-gray-800 hover:text-white ': page !== currentPage
+          }"
+          class="hover:bg-blue-500 font-bold py-2 px-4 rounded"
+          @click="changePage(page)"
+        >
+          {{ page }}
+        </button>
+        <button
+          class="bg-gray-300 text-black hover:bg-blue-500 hover:text-white py-2 px-4 rounded"
+          :disabled="currentPage === totalPages"
+          @click="changePage(currentPage + 1)"
+        >
+          Next
+        </button>
+      </div>
+      <span class="text-gray-500">
+        {{ (currentPage - 1) * perPage + 1 }} to
+        {{ Math.min(currentPage * perPage, totalInvoices) }} of
+        {{ totalInvoices }}
+      </span>
+    </div>
   </div>
+  <FsLightbox
+    initialAnimation="example-initial-animation"
+    :loadOnlyCurrentSource="true"
+    :toggler="toggler"
+    :slide="slide"
+    crossorigin="anonymous"
+    type="image"
+    :sources="media"
+  />
 </template>
 <style>
 .custom-table td:not(:last-child),
