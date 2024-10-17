@@ -67,6 +67,7 @@ const invoice = ref<IInvoice>({
   ClientPhone: '',
   InvoiceCode: '',
   InvoiceDesc: '',
+  isEditable: false,
   InvoiceBarCode: '',
   DirectoryFId: 0,
   subFolder: 0,
@@ -74,7 +75,7 @@ const invoice = ref<IInvoice>({
   dataCreated: '',
   InvoicePath: '',
   ClientName: '',
-  ExpiredDate: getCurrentDate(),
+  ExpiredDate: '',
   AndroidVersion: '',
   UserFId: user!.UserId,
   InvoiceDate: getCurrentDate(),
@@ -174,72 +175,81 @@ const clear = () => {
 }
 
 const createInvoice = async () => {
-  open.value = true
-  const date = new Date()
-  const formData = new FormData()
-  const milliseconds = date.getSeconds() * 1000
-  invoice.value.AndroidVersion = navigator.userAgent
-  invoice.value.InvoicePath = 'test'
-  const data = JSON.parse(JSON.stringify(invoice.value))
-  if (images.value.length > 0) {
-    formData.append('image[]', images.value[0].content)
-  }
-  const axiosInstance = axios.create()
-  axiosInstance.defaults.transformRequest = AxiosFormData
+  try {
+    open.value = true
+    const date = new Date()
+    const formData = new FormData()
+    const milliseconds = date.getSeconds() * 1000
+    invoice.value.AndroidVersion = navigator.userAgent
+    invoice.value.InvoicePath = 'test'
+    const data = JSON.parse(JSON.stringify(invoice.value))
 
-  await useAxiosRequestWithToken(token)
-    .post(`${ApiRoutes.addInvoice}`, data)
-    .then(function (response) {
-      //success
-      if (response.data.status === 201) {
-        images.value.forEach(async (v, k) => {
-          const formData = new FormData()
-          formData.append('image', v.content)
-          formData.append('uniqueId', `${milliseconds}`)
-          formData.append('InvoiceFId', `${response.data.invoiceId}`)
-          // for (let [key, value] of formData.entries()) {
-          //   console.log('ethogange', key, value)
-          // }
+    if (images.value.length > 0) {
+      formData.append('image[]', images.value[0].content)
+    }
 
-          await useAxiosRequestWithTokenForImage(token)
-            .post(`${ApiRoutes.addImage}`, formData)
-            .then(function (rep) {
-              if (images.value.length - 1 == k) {
-                toast.open({
-                  message: "'Enregistremet réussi avec succès",
-                  type: 'success',
-                  position: 'bottom',
-                  duration: 5000
-                })
+    const axiosInstance = axios.create()
+    axiosInstance.defaults.transformRequest = AxiosFormData
 
-                clear()
-                const data: any = rep.data.image
-                console.log('ethberg---------->', data)
-                tabPicture.value = data
-              }
-            })
-            .catch(function (error) {
-              // erreur
-              toast.open({
-                message: "Erreur lors de l'upload des images",
-                type: 'error',
-                position: 'bottom',
-                duration: 5000
-              })
-            })
-        })
-      }
-    })
-    .catch(function (error) {
-      //error
+    const response = await useAxiosRequestWithToken(token).post(`${ApiRoutes.addInvoice}`, data)
+
+    if (response.data.status === 201) {
       toast.open({
-        message: "Erreur lors de l'upload de la facture",
+        message: 'Enregistrement réussi avec succès',
+        type: 'success',
+        position: 'bottom',
+        duration: 5000
+      })
+
+      clear()
+      for (let [k, v] of images.value.entries()) {
+        const formData = new FormData()
+        formData.append('image', v.content)
+        formData.append('uniqueId', `${milliseconds}`)
+        formData.append('InvoiceFId', `${response.data.invoiceId}`)
+
+        try {
+          const rep = await useAxiosRequestWithTokenForImage(token).post(
+            `${ApiRoutes.addImage}`,
+            formData
+          )
+
+          if (images.value.length - 1 === k) {
+            toast.open({
+              message: 'Enregistrement réussi avec succès',
+              type: 'success',
+              position: 'bottom',
+              duration: 5000
+            })
+
+            clear()
+            const data = rep.data.image
+            console.log('Images:', data)
+            tabPicture.value = data
+          }
+        } catch (imageError: any) {
+          const errorMessage = imageError.response?.data?.error?.image || [
+            "Erreur lors de l'upload des images"
+          ]
+          toast.open({
+            message: errorMessage.join(', '),
+            type: 'error',
+            position: 'bottom',
+            duration: 5000
+          })
+        }
+      }
+    } else {
+      toast.open({
+        message: response?.data?.errors.InvoiceCode,
         type: 'error',
         position: 'bottom',
         duration: 5000
       })
-    })
-  open.value = false
+    }
+  } finally {
+    open.value = false
+  }
 }
 
 const dragover = (e: any) => {
@@ -313,6 +323,20 @@ const uploadFile = (event: any) => {
     url.value.push({ file: fileSrc, content: files[i], fileType: fileType })
     images.value.push(data)
   }
+}
+const isCarteIdentite = () => {
+  const selectedDirectory = directories.value.find(
+    (item) => item.DirectoryId === invoice.value.DirectoryFId
+  )
+  const directoryName = selectedDirectory ? selectedDirectory.DirectoryName : ''
+  return (
+    directoryName &&
+    directoryName
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .includes("carte d'identite")
+  )
 }
 </script>
 <template>
@@ -437,6 +461,39 @@ const uploadFile = (event: any) => {
                   </option>
                 </select>
               </div>
+              <div class="flex space-x-4 mt-4" v-if="isCarteIdentite()">
+                <div class="flex flex-col items-start w-full">
+                  <label for="ClientName" class="text-lg mb-2 text-black">Nom du Client</label>
+                  <input
+                    v-model="invoice.ClientName"
+                    type="text"
+                    id="ClientName"
+                    placeholder="Enter Client Name"
+                    class="w-full text-black pr-3 pl-3 py-2 rounded border-2 border-gray-200 outline-none focus:border-gray-500"
+                  />
+                </div>
+                <div class="flex flex-col items-start w-full">
+                  <label for="ClientNumber" class="text-lg mb-2 text-black">Numéro du Client</label>
+                  <input
+                    v-model="invoice.ClientPhone"
+                    type="text"
+                    id="ClientNumber"
+                    placeholder="Enter Client Number"
+                    class="w-full text-black pr-3 pl-3 py-2 rounded border-2 border-gray-200 outline-none focus:border-gray-500"
+                  />
+                </div>
+              </div>
+              <div class="flex flex-col items-start w-full" v-if="isCarteIdentite()">
+                <label for="ExpirationDate" class="text-lg mb-2 text-black"
+                  >Date d'Expiration</label
+                >
+                <input
+                  v-model="invoice.ExpiredDate"
+                  type="date"
+                  id="ExpirationDate"
+                  class="w-full text-black pr-3 pl-3 py-2 rounded border-2 border-gray-200 outline-none focus:border-gray-500"
+                />
+              </div>
             </div>
 
             <!-- Submit Buttons -->
@@ -476,7 +533,7 @@ const uploadFile = (event: any) => {
         <div class="px-6 py-4">
           <div class="w-full max-w-xl">
             <div
-              :class="{ 'bg-transparent ': isDragging }"
+              :class="{ 'bg-white ': isDragging, 'border-blue-500': isDragging }"
               class="myColor bg-blue-500 drag-area rounded-md border-dashed border-2 border-[#fff] h-[295px] mb-8 flex flex-col items-center justify-center mt-[6px] select-none"
               @dragover="dragover"
               @dragleave="dragLeave"
@@ -491,7 +548,7 @@ const uploadFile = (event: any) => {
                 <!-- Nuage -->
                 <path
                   d="M50 100c-20 0-35-15-35-35 0-15 10-27 25-32 5-15 20-25 40-25 15 0 30 6 40 20 15-10 35-10 50 0 15 10 20 25 20 40 0 20-15 35-35 35H50z"
-                  fill="#FFFFFF"
+                  :fill="isDragging ? '#3B82F6' : '#FFFFFF'"
                 />
               </svg>
 
@@ -499,18 +556,21 @@ const uploadFile = (event: any) => {
                 for="fileInput"
                 class="relative px-4 rounded-md text-white text-2xl cursor-pointer"
               >
-                <div v-if="isDragging">Release to drop files here.</div>
+                <div class="text-blue-500" v-if="isDragging">Release to drop files here.</div>
                 <div v-else>Drag your files here</div>
                 <br />
               </label>
               <label class="mb-2">
-                <span class="text-white text-xl">OR</span>
+                <span :class="{ 'text-blue-500': isDragging }" class="text-white text-xl">OR</span>
               </label>
               <label
                 for="fileInput"
+                :class="{ 'bg-blue-500 ': isDragging }"
                 class="relative bg-[#fff] px-8 py-2 rounded cursor-pointer mb-4"
               >
-                <span class="text-blue-500 text-xl">Select files</span>
+                <span :class="{ 'text-white ': isDragging }" class="text-blue-500 text-xl"
+                  >Select files</span
+                >
                 <input
                   id="fileInput"
                   type="file"
