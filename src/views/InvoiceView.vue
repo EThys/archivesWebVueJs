@@ -81,7 +81,6 @@ const invoice = ref<IInvoice>({
   BranchFId: user!.BranchFId,
   dateFrom: '',
   dateTo: '',
-  images: [],
   isActive: false
 })
 
@@ -234,7 +233,7 @@ const createInvoice = async () => {
     .catch(function (error) {
       //error
       toast.open({
-        message: error.response.data.message,
+        message: "Erreur lors de l'upload de la facture",
         type: 'error',
         position: 'bottom',
         duration: 5000
@@ -279,13 +278,21 @@ const uploadFile = (event: any) => {
   const files = event.target.files
 
   console.log('image ', files)
-
   console.log('Test ', files.length)
+
   for (let i = 0; i < files.length; i++) {
     const fileType = files[i].type
     let fileSrc: string
+
+    // Vérifiez le type de fichier
     if (fileType === 'application/pdf') {
-      fileSrc = 'assets/images.png' // Chemin vers votre image par défaut
+      fileSrc = 'http://localhost:5173/assets/pdf.png'
+      console.log('ethberg ', fileSrc)
+    } else if (
+      fileType === 'application/msword' ||
+      fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ) {
+      fileSrc = 'http://localhost:5173/assets/doc.png'
     } else {
       fileSrc = URL.createObjectURL(files[i])
       console.log('ethberg ', fileSrc)
@@ -294,12 +301,15 @@ const uploadFile = (event: any) => {
       }, 1000)
     }
 
+    // Créez un objet de données pour chaque fichier
     const data = {
       name: files[i].name,
       content: files[i],
       file: event.target.files[i],
       fileType: fileType
     }
+
+    // Ajoutez le fichier à votre tableau d'URLs
     url.value.push({ file: fileSrc, content: files[i], fileType: fileType })
     images.value.push(data)
   }

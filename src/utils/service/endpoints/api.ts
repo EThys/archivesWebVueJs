@@ -10,6 +10,7 @@ export const ApiRoutes = {
   addInvoice: 'addInvoice',
   allInvoices: 'allInvoices',
   deleteInvoice: 'deleteInvoice',
+  updateInvoice: 'updateInvoice',
   searchInvoice: '/invoices/filter', //this is for search
   //routes for images
   addImage: '/images/store',

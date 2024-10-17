@@ -7,6 +7,7 @@ export interface IInvoice {
   InvoiceId: Number
   InvoiceCode: String
   InvoiceDesc: String
+  isEditable: Boolean
   InvoiceBarCode: string
   DirectoryFId: Number
   subFolder: Number
