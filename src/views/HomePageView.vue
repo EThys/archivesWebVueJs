@@ -41,6 +41,7 @@ const isCategorySearchOpen = ref(false)
 const user = getUser()
 const searching = ref<Boolean>(false)
 const isChecked = ref<boolean>(false)
+const isEditable = ref<Boolean>()
 const selectedItem = ref('All')
 const showSortOptions = ref<boolean>(false)
 const advancedSearch = ref<boolean>(false)
@@ -181,6 +182,11 @@ const SelectinvoicesKeys = ref([])
 const selectedBranches = ref([])
 const dateFrom = ref('')
 const dateTo = ref('')
+const sortOrder = ref('')
+
+const clearSorting = () => {
+  sortOrder.value = ''
+}
 
 const clearFields = () => {
   code.value = ''
@@ -209,7 +215,7 @@ const searchInvoices = async () => {
       key = 'BranchName'
       break
     case 'Date':
-      key = 'ExpiredDate'
+      key = 'InvoiceDate'
       break
     default:
       key = `Invoice${selectedItem.value}`
@@ -234,6 +240,10 @@ const searchInvoices = async () => {
 
   if (dateFrom.value) searchParams.append('date_from', dateFrom.value)
   if (dateTo.value) searchParams.append('date_to', dateTo.value)
+  // if (sortOrder.value) searchParams.append('sort_order', sortOrder.value)
+  searchParams.append('sort_by', 'CreatedAt')
+  searchParams.append('sort_order', sortOrder.value)
+  console.log('BABABABBAABBA', sortOrder.value)
   // if (SelectinvoicesKeys.value) searchParams.append('Invoicekey', SelectinvoicesKeys.value)
   searchParams.append('per_page', perPage.value.toString())
   searchParams.append('page', currentPage.value.toString())
@@ -277,6 +287,71 @@ const changePage = (page: any) => {
 const downloadSelected = () => {
   // Implement the download logic here
   console.log('Downloading invoices:', [...selectedInvoiceIds.value])
+}
+const invoice = ref<IInvoice>({
+  InvoiceId: 0,
+  ClientPhone: '',
+  InvoiceCode: '',
+  InvoiceDesc: '',
+  isEditable: false,
+  InvoiceBarCode: '',
+  DirectoryFId: 0,
+  subFolder: 0,
+  InvoiceKeyFId: 0,
+  dataCreated: '',
+  InvoicePath: '',
+  ClientName: '',
+  ExpiredDate: '',
+  AndroidVersion: '',
+  UserFId: user!.UserId,
+  InvoiceDate: '',
+  BranchFId: user!.BranchFId,
+  dateFrom: '',
+  dateTo: '',
+  isActive: false
+})
+
+const open = ref(false)
+const updateInvoice = async (invoiceId: any) => {
+  try {
+    open.value = true
+    const updatedInvoice = invoices.value.find((inv) => inv.InvoiceId === invoiceId)
+    console.log('Invoice updated:', updatedInvoice)
+    if (window.confirm('Do you want to save changes?')) {
+      const response = await useAxiosRequestWithToken(token).post(
+        `${ApiRoutes.updateInvoice}/${invoiceId}`,
+        updatedInvoice
+      )
+
+      if (response.data.status === 200) {
+        toast.open({
+          message: '"Changes saved successfully!',
+          type: 'success',
+          position: 'bottom',
+          duration: 5000
+        })
+        console.log('MUZOLLLLLLLLLLLLLA', response)
+        setTimeout(() => searchInvoices(), 100)
+      } else {
+        toast.open({
+          message: response.data.errors.InvoiceCode,
+          type: 'error',
+          position: 'bottom',
+          duration: 5000
+        })
+      }
+    }
+  } catch (error) {
+    console.error('Erreur du serveur', error)
+    toast.open({
+      message: 'Erreur du serveur',
+      type: 'error',
+      position: 'bottom',
+      duration: 5000
+    })
+  } finally {
+    open.value = false
+  }
 }
 const deleteInvoice = async (invoiceId: any) => {
   try {
@@ -333,6 +408,33 @@ const toggleSwitch = () => {
 const toggleCategorySearchOpen = () => {
   isCategorySearchOpen.value = !isCategorySearchOpen.value
 }
+const originalData = ref<Array<IInvoice>>([{} as IInvoice])
+
+const toggleEdit = (invoice: any) => {
+  if (invoice.isEditable) {
+    // Annuler l'édition : restaurer les données originales
+    Object.assign(
+      invoice,
+      originalData.value.find((v) => v.InvoiceId === invoice.InvoiceId)
+    )
+    invoice.isEditable = false
+  } else {
+    // Passer en mode édition : sauvegarder les données originales
+    const originalInvoice = { ...invoice } // Créer une copie des données actuelles
+    originalData.value = originalData.value.filter((v) => v.InvoiceId !== invoice.InvoiceId) // Supprimer l'ancienne entrée
+    originalData.value.push(originalInvoice) // Ajouter la nouvelle entrée
+    invoice.isEditable = true
+  }
+}
+
+const cancelEdit = (invoice: any) => {
+  invoice = { ...originalData.value }
+  invoice.isEditable = false
+}
+// const toggleEdit = (invoice: any) => {
+//   invoice.isEditable = !invoice.isEditable
+// }
+
 const handleSelect = (selected: any) => {
   console.log('Selected directories:', selected)
 }
@@ -518,21 +620,28 @@ const getBranchesNames = (branches: any) => {
         <label for="order-by" class="text-md font-semibold text-gray-400">Order By</label>
         <select
           id="order-by"
+          v-model="sortOrder"
           class="mt-1 text-black-400 p-2 w-full border border-gray-700 rounded-md"
         >
-          <option>Desc</option>
-          <option>Asc</option>
+          <option value="asc">Asc</option>
+          <!-- Valeur pour tri ascendant -->
+          <option value="desc">Desc</option>
+          <!-- Valeur pour tri descendant -->
         </select>
       </div>
       <div class="flex-2 mr-4">
         <label for="order-by" class="text-md block font-semibold text-gray-400">Actions</label>
         <button
+          @click="searchInvoices()"
           class="bg-green-500 hover:bg-green-600 text-white font-medium text-sm py-2 px-4 mr-2 rounded"
         >
           <i class="fa-solid fa-magnifying-glass"></i>
           Search
         </button>
-        <button class="bg-yellow-300 text-black font-medium text-sm py-2 px-4 mr-2 rounded">
+        <button
+          @click="clearSorting()"
+          class="bg-yellow-300 text-black font-medium text-sm py-2 px-4 mr-2 rounded"
+        >
           <i class="fa-solid fa-eraser"></i>
           Clear
         </button>
@@ -833,9 +942,11 @@ const getBranchesNames = (branches: any) => {
               >
                 <div class="flex flex-row justify-center space-x-2">
                   <button
-                    class="edit bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                    style="background-color: #5a6268"
+                    @click="toggleEdit(invoice)"
+                    class="edit text-white font-bold py-2 px-4 rounded"
                   >
-                    Edit
+                    {{ invoice.isEditable ? 'Cancel' : 'Edit' }}
                   </button>
                   <button
                     @click="deleteInvoice(invoice.InvoiceId)"
@@ -844,9 +955,12 @@ const getBranchesNames = (branches: any) => {
                     Delete
                   </button>
                   <button
+                    @click="updateInvoice(invoice.InvoiceId)"
+                    :disabled="open"
                     class="save bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
                   >
-                    Save
+                    <span v-if="!open">Save</span>
+                    <i v-else class="fa fa-spinner fa-spin"></i>
                   </button>
                   <button
                     @click="toggleSelectInvoice(invoice.InvoiceId)"
@@ -883,7 +997,14 @@ const getBranchesNames = (branches: any) => {
               Code
             </th>
             <td class="px-6 py-2 border-r border-gray-300 dark:border-gray-600 w-1/4">
-              {{ invoice.InvoiceCode }}
+              <input
+                v-if="invoice.isEditable"
+                type="text"
+                v-model="invoice.InvoiceCode"
+                class="w-full h-full border border-gray-300 rounded-md text-sm px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring focus:ring-blue-500"
+                style="box-sizing: border-box"
+              />
+              <span v-else>{{ invoice.InvoiceCode }}</span>
             </td>
           </tr>
           <tr class="bg-white border-b dark:bg-gray-800">
@@ -894,7 +1015,14 @@ const getBranchesNames = (branches: any) => {
               Description
             </th>
             <td class="px-6 py-2 border-r border-gray-300 dark:border-gray-600 w-1/4">
-              {{ invoice.InvoiceDesc }}
+              <input
+                v-if="invoice.isEditable"
+                type="text"
+                v-model="invoice.InvoiceDesc"
+                class="w-full h-full border border-gray-300 rounded-md text-sm px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring focus:ring-blue-500"
+                style="box-sizing: border-box"
+              />
+              <span v-else>{{ invoice.InvoiceDesc }}</span>
             </td>
           </tr>
           <tr class="bg-white border-b dark:bg-gray-800">
@@ -905,7 +1033,14 @@ const getBranchesNames = (branches: any) => {
               BarCode
             </th>
             <td class="px-6 py-2 border-r border-gray-300 dark:border-gray-600 w-1/4">
-              {{ invoice.InvoiceBarCode }}
+              <input
+                v-if="invoice.isEditable"
+                type="text"
+                v-model="invoice.InvoiceBarCode"
+                class="w-full h-full border border-gray-300 rounded-md text-sm px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring focus:ring-blue-500"
+                style="box-sizing: border-box"
+              />
+              <span v-else>{{ invoice.InvoiceBarCode }}</span>
             </td>
           </tr>
           <tr class="bg-white border-b dark:bg-gray-800">
@@ -949,7 +1084,14 @@ const getBranchesNames = (branches: any) => {
               Date
             </th>
             <td class="px-6 py-2 border-r border-gray-300 dark:border-gray-600 w-1/4">
-              {{ invoice.ExpiredDate }}
+              <input
+                v-if="invoice.isEditable"
+                type="date"
+                v-model="invoice.InvoiceDate"
+                class="w-full h-full border border-gray-300 rounded-md text-sm px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring focus:ring-blue-500"
+                style="box-sizing: border-box"
+              />
+              <span v-else>{{ invoice.InvoiceDate }}</span>
             </td>
           </tr>
           <tr class="bg-white border-b dark:bg-gray-800">
