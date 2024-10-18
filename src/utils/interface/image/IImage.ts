@@ -7,6 +7,7 @@ export interface IImage {
   ImageOriginalName: string
   ImagePath: string
   PublicUrl: string
+  IconPath: string
   invoice: IInvoice
   isActive: boolean
 }

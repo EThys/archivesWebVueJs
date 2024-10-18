@@ -129,12 +129,26 @@ const slide = ref(1)
 const toggler = ref<Boolean>(false)
 
 const getPict = (data: any, value: number) => {
-  media.value = []
-  toggler.value = !toggler.value
-  media.value = data.map((v: IImage) => `${baseUrl}${v.PublicUrl}`)
-  slide.value = value + 1
+  const clickedItem = data[value]
 
-  console.log('MUWOLA', media.value)
+  if (clickedItem.ImageOriginalName.endsWith('.pdf')) {
+    console.log('PDF détecté:', clickedItem.ImageOriginalName)
+    // Ouvrir le PDF dans un nouvel onglet
+    window.open(`${baseUrl}${clickedItem.PublicUrl}`, '_blank')
+    return // Sortir de la fonction pour éviter l'ouverture dans FsLightbox
+  }
+  // Pour les images non-PDF
+  media.value = data.map((v: IImage) => `${baseUrl}${v.PublicUrl}`)
+  toggler.value = !toggler.value
+  slide.value = value + 1
+  console.log('Images chargées:', media.value)
+}
+
+const getImageSource = (item: IImage) => {
+  if (item.ImageOriginalName.endsWith('.pdf')) {
+    return `${baseUrl}${item.IconPath}`
+  }
+  return `${baseUrl}${item.PublicUrl}`
 }
 
 const toggleSortOptions = () => {
@@ -930,7 +944,7 @@ const getBranchesNames = (branches: any) => {
                     :key="item.InvoiceId"
                     :alt="item.ImageName"
                     class="object-cover w-full h-auto cursor-pointer"
-                    :src="`${baseUrl}${item.PublicUrl}`"
+                    :src="getImageSource(item)"
                     @click="getPict(invoice.images, index)"
                   />
                   <span v-else class="w-[100px] h-[150px] mr-3"></span>
@@ -1189,6 +1203,23 @@ const getBranchesNames = (branches: any) => {
 .custom-table td:last-child,
 .custom-table th:last-child {
   border-bottom: none;
+}
+.example-initial-animation {
+  animation: initial-animation 2s ease;
+}
+
+@keyframes initial-animation {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  50% {
+    transform: rotate(360deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
 }
 
 .action-buttons .edit {
