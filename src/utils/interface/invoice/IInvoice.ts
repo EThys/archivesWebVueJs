@@ -15,7 +15,7 @@ export interface IInvoice {
   InvoiceDate: String
   BranchFId: Number
   user?: IUser
-  images?: IImage
+  images?: [IImage]
   directory?: IDirectory
   InvoiceKeyFId: number
   dataCreated: string

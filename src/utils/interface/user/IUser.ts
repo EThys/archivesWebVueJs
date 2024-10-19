@@ -9,6 +9,9 @@ export interface IUser {
     BranchId: Number
     BranchName: string
   }
+  user: {
+    UserName: string
+  }
 }
 
 export interface IUserAuth {
