@@ -392,7 +392,7 @@ const updateInvoice = async (invoiceId: any) => {
 const deleteInvoice = async (invoiceId: any) => {
   try {
     if (window.confirm('Do you want to delete this invoice?')) {
-      const response = await useAxiosRequestWithToken(token).delete(
+      const response = await useAxiosRequestWithToken(token).post(
         `${ApiRoutes.deleteInvoice}/${invoiceId}`
       )
 
