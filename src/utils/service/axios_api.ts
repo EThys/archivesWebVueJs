@@ -2,7 +2,7 @@ import axios, { type AxiosInstance } from 'axios'
 
 export const useAxiosRequestWithToken = (token: string = ''): AxiosInstance => {
   const useAxios: AxiosInstance = axios.create({
-    baseURL: 'http://173.212.228.130:5012/api/',
+    baseURL: 'http://213.136.74.84:701/api/',
     headers: {
       accept: 'application/json',
       'Content-type': 'application/json',
@@ -16,7 +16,7 @@ export const useAxiosRequestWithToken = (token: string = ''): AxiosInstance => {
 
 export const useAxiosRequestWithTokenForImage = (token: string = ''): AxiosInstance => {
   const useAxios: AxiosInstance = axios.create({
-    baseURL: 'http://173.212.228.130:5012/api/',
+    baseURL: 'http://213.136.74.84:701/api/',
     headers: {
       accept: 'application/json',
       'Content-Type': 'multipart/form-data',
